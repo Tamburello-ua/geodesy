@@ -1,0 +1,12 @@
+{
+  "[yaml]": {
+    "editor.quickSuggestions": {
+      "strings": "on"
+    }
+  },
+  "dart.flutterSdkPath": "~/fvm/versions/stable",
+  "dart.sdkPath": ".fvm/flutter_sdk/bin/cache/dart-sdk",
+  "terminal.integrated.env.osx": {
+    "PATH": "${workspaceFolder}/.fvm/flutter_sdk/bin:${env:PATH}"
+  }
+}
