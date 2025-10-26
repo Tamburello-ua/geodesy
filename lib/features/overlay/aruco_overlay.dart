@@ -20,6 +20,7 @@ class ArucoOverlay extends StatelessWidget {
   final double? finalYaw;
   final double? verticalFovDegrees;
   final bool? showPointer;
+  final Offset targetPoint;
 
   const ArucoOverlay({
     super.key,
@@ -39,6 +40,7 @@ class ArucoOverlay extends StatelessWidget {
     this.finalYaw,
     this.verticalFovDegrees,
     this.showPointer = false,
+    required this.targetPoint,
   });
 
   @override
@@ -61,6 +63,7 @@ class ArucoOverlay extends StatelessWidget {
         finalYaw: finalYaw,
         verticalFovDegrees: verticalFovDegrees,
         showPointer: showPointer,
+        targetPoint: targetPoint,
       ),
       child: Container(),
     );

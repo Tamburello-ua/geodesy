@@ -36,6 +36,8 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   List<MarkerDetection> _detectedMarkers = [];
   String? _errorMessage;
   bool _isInitializing = true;
+  bool _isAvailable = false;
+  bool init = true;
 
   // Настройки
   final ArucoDictionary _currentDictionary = ArucoDictionary.dict4x4_50;
@@ -43,7 +45,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
 
   MotionData? _motionData;
   StreamSubscription? _motionSubscription;
-  bool _isAvailable = false;
 
   double finalPitch = 0;
   double finalRoll = 0;
@@ -55,7 +56,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   Position? _userPosition;
   // ignore: unused_field
   Exception? _exception;
-  bool init = true;
+
   List<Position> positions = [];
   List<Position> filteredPositions = [];
   final processor = KalmanFilter();
@@ -65,6 +66,8 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   final showDebug = false;
   final showOpticPath = true;
 
+  bool needCalibration = false;
+
   final double VERTICAL_FOV = 63.1;
   final double HORIZONTAL_FOV = 49.7;
 
@@ -72,22 +75,15 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   Map<String, dynamic> compensated = {};
   final FOVCalibration fovCalibration = FOVCalibration();
 
-  bool needCalibration = false;
-
   late StreamSubscription<CompassEvent> _compassSubscription;
+  Map<String, double> _targetPoint = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _requestPermissions();
-    _startCompassListening();
 
-    _initializeCamera();
-
-    _checkAvailabilityAndStart();
-
-    _initializeLocation();
+    _initializeAll();
   }
 
   @override
@@ -142,15 +138,39 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _requestPermissions() async {
-    final statuses = await [Permission.location, Permission.camera].request();
-
-    if (statuses[Permission.location]!.isGranted &&
-        statuses[Permission.camera]!.isGranted) {
-      print('✅ Все разрешения выданы');
-    } else {
-      print('❌ Не все разрешения получены');
+  Future<void> _initializeAll() async {
+    bool granted = await _requestAllPermissions();
+    if (!granted) {
+      setState(() => _isInitializing = false);
+      return;
     }
+
+    _startCompassListening();
+    await _checkAvailabilityAndStart();
+    await _initializeCamera();
+    await _initializeLocation();
+  }
+
+  Future<bool> _requestAllPermissions() async {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.camera,
+      Permission.location,
+      Permission.locationWhenInUse,
+    ].request();
+
+    bool allGranted = statuses.values.every((status) => status.isGranted);
+
+    if (!allGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Не все разрешения получены. Пожалуйста, предоставьте их в настройках.',
+          ),
+        ),
+      );
+    }
+
+    return allGranted;
   }
 
   Future<void> _startCompassListening() async {
@@ -241,6 +261,13 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
               if (_detectedMarkers.isNotEmpty && needCalibration) {
                 _handleCalibration(_detectedMarkers);
               }
+
+              _targetPoint = getHandleBottom(
+                detectedMarkers: _detectedMarkers,
+                pitch: finalPitch,
+                distanceToHandleBottomMM: 80.0,
+                distanceBetweenMarkersMM: 100.0,
+              );
             });
             if (showDebug) {
               print(
@@ -323,6 +350,11 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                 child: Stack(
                   children: [
                     Positioned.fill(child: _buildCameraPreview()),
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.75),
+                      ),
+                    ),
 
                     if (_cameraController.isInitialized)
                       Positioned.fill(
@@ -343,6 +375,10 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                             finalYaw: finalYaw,
                             verticalFovDegrees: VERTICAL_FOV,
                             showPointer: true,
+                            targetPoint: Offset(
+                              _targetPoint['handle_point_x'] ?? 0.0,
+                              _targetPoint['handle_point_y'] ?? 0.0,
+                            ),
                           ),
                         ),
                       ),
@@ -400,6 +436,8 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                     detectedMarkers: _detectedMarkers,
                     verticalFovDegrees: VERTICAL_FOV,
                     horizontalFovDegrees: HORIZONTAL_FOV,
+                    targetPointY: _targetPoint['handle_point_y'] ?? 0.0,
+                    originalFrameWidth: previewSize.height,
                   ),
                 ),
               ),

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geodesy/models/marker_detection.dart';
 import 'package:geodesy/screen/utils/position_data.dart';
@@ -9,6 +10,8 @@ class GeoPointWidget extends StatelessWidget {
   final List<MarkerDetection> detectedMarkers;
   final double verticalFovDegrees;
   final double horizontalFovDegrees;
+  final double targetPointY;
+  final double originalFrameWidth;
 
   const GeoPointWidget({
     super.key,
@@ -18,6 +21,8 @@ class GeoPointWidget extends StatelessWidget {
     required this.detectedMarkers,
     required this.verticalFovDegrees,
     required this.horizontalFovDegrees,
+    required this.targetPointY,
+    required this.originalFrameWidth,
   });
 
   @override
@@ -32,7 +37,13 @@ class GeoPointWidget extends StatelessWidget {
         aspectRatio: 1.0,
 
         child: CustomPaint(
-          painter: PathPainter(azimuth: azimuth, distanceCm: distanceCm),
+          painter: PathPainter(
+            azimuth: azimuth,
+            distanceCm: distanceCm,
+            horizontalFovDegrees: horizontalFovDegrees,
+            targetPointY: targetPointY,
+            originalFrameWidth: originalFrameWidth,
+          ),
           child: Container(),
         ),
         // ),
@@ -44,20 +55,26 @@ class GeoPointWidget extends StatelessWidget {
 class PathPainter extends CustomPainter {
   final double azimuth;
   final double distanceCm;
+  final double horizontalFovDegrees;
+
+  final double targetPointY;
+  final double originalFrameWidth;
+
+  double offsetXInoriginalFrame = 0.0;
 
   // Стили красок
   final Paint gridPaint = Paint()
-    ..color = Colors.white.withOpacity(0.3)
+    ..color = Colors.white.withValues(alpha: 0.3)
     ..strokeWidth = 1.0
     ..style = PaintingStyle.stroke;
 
   final Paint axisPaint = Paint()
-    ..color = Colors.white.withOpacity(0.5)
+    ..color = Colors.white.withValues(alpha: 0.5)
     ..strokeWidth = 1.5
     ..style = PaintingStyle.stroke;
 
   final Paint beamPaint = Paint()
-    ..color = Colors.cyanAccent
+    ..color = Colors.cyanAccent.withValues(alpha: 0.5)
     ..strokeWidth = 2.0
     ..style = PaintingStyle.stroke;
 
@@ -69,38 +86,96 @@ class PathPainter extends CustomPainter {
     ..color = Colors.white
     ..style = PaintingStyle.fill;
 
-  PathPainter({required this.azimuth, required this.distanceCm});
+  PathPainter({
+    required this.azimuth,
+    required this.distanceCm,
+    required this.horizontalFovDegrees,
+    required this.targetPointY,
+    required this.originalFrameWidth,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Определение центра и масштаба
-
-    // Точка старта (пользователь) - внизу по центру
     final Offset originOffset = Offset(size.width / 2, size.height * 0.9);
-
-    // Вычисляем максимальный радиус обзора в см.
-    // Округляем distanceCm до ближайших 100 см + 100 см запаса
-    // (минимум 100 см)
     final double viewRadiusCm = ((distanceCm / 100.0).ceil() + 1) * 100.0;
-
-    // Доступная высота для рисования (от origin до верха)
     final double availableHeightPx = originOffset.dy;
-
-    // Коэффициент масштабирования: пикселей в одном сантиметре
     final double pixelsPerCm = availableHeightPx / viewRadiusCm;
-
-    // Размер ячейки сетки в пикселях
     final double gridCellSizePx = 100.0 * pixelsPerCm;
 
-    // 2. Отрисовка сетки
     _drawGrid(canvas, size, originOffset, gridCellSizePx, 100);
+    _drawFOVCone(canvas, originOffset, pixelsPerCm, azimuth, distanceCm);
 
-    // 3. Отрисовка луча и цели
-    _drawBeam(canvas, originOffset, pixelsPerCm, azimuth, distanceCm);
+    offsetXInoriginalFrame = calculateOffsetFromCenter(
+      originalFrameWidth,
+      targetPointY,
+    );
 
-    // 4. Отрисовка точки старта (пользователя)
+    _drawTargetPoint(
+      canvas,
+      originOffset,
+      pixelsPerCm,
+      azimuth,
+      distanceCm,
+      offsetXInoriginalFrame,
+    );
+
     canvas.drawCircle(originOffset, 5.0, originPaint);
     canvas.drawCircle(originOffset, 2.0, beamPaint);
+  }
+
+  double calculateOffsetFromCenter(double totalWidth, double position) {
+    double center = totalWidth / 2;
+    double offset = position - center;
+    double percentage = (offset / center) * 100;
+    return percentage;
+  }
+
+  void _drawFOVCone(
+    Canvas canvas,
+    Offset origin,
+    double pixelsPerCm,
+    double azimuth,
+    double distanceCm,
+  ) {
+    if (distanceCm <= 0) return;
+
+    final double angleRad = (azimuth - 90.0) * (math.pi / 180.0);
+
+    final double distancePx = distanceCm * pixelsPerCm * 1.5;
+
+    // Половина угла FOV в радианах
+    final double halfFovRad = (horizontalFovDegrees / 2) * (math.pi / 180.0);
+
+    // Левые и правые лучи конуса
+    final double leftAngle = angleRad - halfFovRad;
+    final double rightAngle = angleRad + halfFovRad;
+
+    final Offset leftOffset = Offset(
+      origin.dx + distancePx * math.cos(leftAngle),
+      origin.dy + distancePx * math.sin(leftAngle),
+    );
+
+    final Offset rightOffset = Offset(
+      origin.dx + distancePx * math.cos(rightAngle),
+      origin.dy + distancePx * math.sin(rightAngle),
+    );
+
+    // Рисуем линии конуса
+    canvas.drawLine(origin, leftOffset, beamPaint);
+    canvas.drawLine(origin, rightOffset, beamPaint);
+
+    // Можно замкнуть треугольник, если хочешь прозрачный конус:
+    final Path conePath = Path()
+      ..moveTo(origin.dx, origin.dy)
+      ..lineTo(leftOffset.dx, leftOffset.dy)
+      ..lineTo(rightOffset.dx, rightOffset.dy)
+      ..close();
+
+    final Paint conePaint = Paint()
+      ..color = Colors.yellow.withValues(alpha: 0.1)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(conePath, conePaint);
   }
 
   /// Отрисовка масштабируемой сетки
@@ -173,19 +248,31 @@ class PathPainter extends CustomPainter {
     }
   }
 
-  /// Отрисовка луча и точки назначения
-  void _drawBeam(
+  double calculateDistanceFromBisectorIntersection(
+    double bisectorLength,
+    double knownAngle,
+    double offsetPercent,
+  ) {
+    double halfAngleRad = (knownAngle / 2) * pi / 180;
+    double halfSide = bisectorLength * tan(halfAngleRad);
+    double fullSide = halfSide * 2;
+
+    double distanceFromCenter = (fullSide / 2) * (offsetPercent / 100);
+
+    return distanceFromCenter; //.abs();
+  }
+
+  /// Отрисовка  точки назначения
+  void _drawTargetPoint(
     Canvas canvas,
     Offset origin,
     double pixelsPerCm,
     double azimuth,
     double distanceCm,
+    double offsetXInoriginalFrame,
   ) {
     if (distanceCm <= 0) return;
 
-    // Переводим азимут (0 = Север/Вверх) в радианы для canvas
-    // 0 градусов (Север) -> -PI/2 (вверх по Y)
-    // 90 градусов (Восток) -> 0 (вправо по X)
     final double angleRad = (azimuth - 90.0) * (math.pi / 180.0);
 
     // Рассчитываем конечную точку в пикселях
@@ -195,10 +282,16 @@ class PathPainter extends CustomPainter {
     final double x = distancePx * math.cos(angleRad);
     final double y = distancePx * math.sin(angleRad);
 
-    final Offset targetOffset = Offset(origin.dx + x, origin.dy + y);
-
-    // Рисуем луч
-    canvas.drawLine(origin, targetOffset, beamPaint);
+    final Offset targetOffset = Offset(
+      origin.dx +
+          x -
+          calculateDistanceFromBisectorIntersection(
+            distancePx,
+            horizontalFovDegrees,
+            offsetXInoriginalFrame,
+          ),
+      origin.dy + y,
+    );
 
     // Рисуем маркер цели
     canvas.drawCircle(targetOffset, 6.0, targetPaint);

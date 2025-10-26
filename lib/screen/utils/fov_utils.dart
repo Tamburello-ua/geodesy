@@ -1,5 +1,3 @@
-import 'dart:math';
-
 class FOVCalibration {
   // Порог угла для фильтрации близких значений VFOV и для проверки finalPitch > 0
   // (~0.5 градуса в радианах)

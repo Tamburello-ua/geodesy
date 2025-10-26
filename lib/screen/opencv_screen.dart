@@ -180,6 +180,7 @@ class _ArucoScannerPageState extends State<ArucoScannerPage>
                           showIds: true,
                           showCorners: true,
                           markerColor: Colors.green,
+                          targetPoint: Offset.zero,
                         ),
                       ),
                     ),

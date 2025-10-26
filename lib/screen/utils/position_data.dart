@@ -1,5 +1,46 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:geodesy/models/marker_detection.dart';
+
+Map<String, double> getHandleBottom({
+  required List<MarkerDetection> detectedMarkers,
+  required double pitch,
+  required double distanceToHandleBottomMM,
+  double distanceBetweenMarkersMM = 100.0,
+}) {
+  if (detectedMarkers.isEmpty || detectedMarkers.length < 2) {
+    return {'pixel_distance': 0.0, 'distance_cm': 0.0};
+  }
+  Offset lowerPoint;
+  Offset upperPoint;
+
+  if (detectedMarkers[0].center.dy > detectedMarkers[1].center.dy) {
+    lowerPoint = detectedMarkers[1].center;
+    upperPoint = detectedMarkers[0].center;
+  } else {
+    lowerPoint = detectedMarkers[0].center;
+    upperPoint = detectedMarkers[1].center;
+  }
+
+  final dx = upperPoint.dx - lowerPoint.dx;
+  final dy = upperPoint.dy - lowerPoint.dy;
+
+  final distance = compensateDistance(sqrt(dx * dx + dy * dy), pitch);
+
+  final vector = upperPoint - lowerPoint;
+  final t = distanceToHandleBottomMM / distanceBetweenMarkersMM;
+  final newPointDx = lowerPoint.dx - t * vector.dx;
+  final newPointDy = lowerPoint.dy - t * vector.dy;
+
+  final foundPoint = Offset(newPointDx, newPointDy);
+
+  return {
+    'pixel_distance': distance,
+    'distance_cm': pixelsToCm(distance),
+    'handle_point_x': foundPoint.dx,
+    'handle_point_y': foundPoint.dy,
+  };
+}
 
 Map<String, double> getPositionData(
   List<MarkerDetection> detectedMarkers,

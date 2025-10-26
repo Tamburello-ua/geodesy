@@ -11,8 +11,6 @@ class ArucoOverlayPainter extends CustomPainter {
   final double? imageWidth; // Ширина исходного изображения (W_I)
   final double? imageHeight; // Высота исходного изображения (H_I)
   final int? sensorOrientation; // Ориентация сенсора
-  final bool showIds;
-  final bool showCorners;
   final Color markerColor;
   final Color idColor;
   final double strokeWidth;
@@ -21,9 +19,14 @@ class ArucoOverlayPainter extends CustomPainter {
   final double? finalRoll;
   final double? finalYaw;
   final double? verticalFovDegrees;
+
   final bool? showPointer;
+  final bool showIds;
+  final bool showCorners;
 
   List<Offset> midPoints = [];
+
+  final Offset targetPoint;
 
   ArucoOverlayPainter({
     required this.detections,
@@ -41,6 +44,7 @@ class ArucoOverlayPainter extends CustomPainter {
     this.finalYaw,
     this.verticalFovDegrees,
     this.showPointer = false,
+    required this.targetPoint,
   });
 
   @override
@@ -66,13 +70,23 @@ class ArucoOverlayPainter extends CustomPainter {
     }
 
     if (showPointer != null && showPointer!) {
-      _dravPointer(canvas, size);
+      _drawPointer(canvas, size);
     }
+    _drawTargetPoint(canvas, size, _scalePoint(targetPoint, size));
 
     _drawPerpendicular(canvas, size);
   }
 
-  void _dravPointer(Canvas canvas, Size size) {
+  void _drawTargetPoint(Canvas canvas, Size size, Offset tPoint) {
+    final Paint paint = Paint()
+      ..color = const Color.fromARGB(255, 191, 255, 0)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(tPoint, 4.0, paint);
+    canvas.drawCircle(tPoint, 2.0, paint);
+  }
+
+  void _drawPointer(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
 
     final Offset p21 = Offset(center.dx, center.dy - 20);
@@ -159,25 +173,6 @@ class ArucoOverlayPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawHandleLine(Canvas canvas, Size size, List<Offset> midPoints) {
-    final paint = Paint()
-      ..color = const Color.fromARGB(255, 191, 255, 0)
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-
-    var handlePoints = findPointOffsetFromLower(midPoints, 80);
-
-    path.moveTo(handlePoints[0].dx, handlePoints[0].dy);
-    for (int i = 1; i < handlePoints.length; i++) {
-      path.lineTo(handlePoints[i].dx, handlePoints[i].dy);
-    }
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
   void _drawCenterLine(Canvas canvas, Size size, List<Offset> midPoints) {
     final paint = Paint()
       ..color = Colors.red
@@ -194,7 +189,7 @@ class ArucoOverlayPainter extends CustomPainter {
 
     canvas.drawPath(path, paint);
 
-    _drawHandleLine(canvas, size, midPoints);
+    // _drawHandleLine(canvas, size, midPoints);
   }
 
   void _drawMarkerBounds(Canvas canvas, Size size, MarkerDetection detection) {
