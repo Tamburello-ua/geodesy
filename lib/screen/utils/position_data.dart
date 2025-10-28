@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:geodesy/models/marker_detection.dart';
+import 'package:geodesy/screen/utils/geodesy_utils.dart';
 
 Offset rotatedPoint(Offset point, int orientation) {
   double rotatedX, rotatedY;
@@ -27,12 +28,21 @@ Offset rotatedPoint(Offset point, int orientation) {
 Map<String, double> getHandleBottom({
   required List<MarkerDetection> detectedMarkers,
   required double pitch,
+  required double roll,
   required double distanceToHandleBottomMM,
-  double distanceBetweenMarkersMM = 100.0,
+  required double distanceBetweenMarkersMM,
   required int orientation,
+  required Size size,
+  required double verticalFovDegrees,
 }) {
   if (detectedMarkers.isEmpty || detectedMarkers.length < 2) {
-    return {'pixel_distance': 0.0, 'distance_cm': 0.0};
+    return {
+      'pixel_distance': 0.0,
+      'distance_cm': 0.0,
+      'elevation_cm': 0.0,
+      'handle_point_x': 0.0,
+      'handle_point_y': 0.0,
+    };
   }
   Offset pointL;
   Offset pointU;
@@ -50,19 +60,30 @@ Map<String, double> getHandleBottom({
 
   final dx = pointL.dx - pointU.dx;
   final dy = pointL.dy - pointU.dy;
-
   final distance = compensateDistance(sqrt(dx * dx + dy * dy), pitch);
 
   final vector = pointL - pointU;
   final t = distanceToHandleBottomMM / distanceBetweenMarkersMM;
   final newPointDx = pointL.dx + t * vector.dx;
   final newPointDy = pointL.dy + t * vector.dy;
-
   final pointFound = Offset(newPointDx, newPointDy);
+
+  var horizontPoints = calculateHorizontLine(
+    verticalFovDegrees,
+    pitch,
+    roll,
+    Size(size.height, size.width),
+  );
+  var perp = findPerpendicularProjection(horizontPoints, pointFound);
+  var pdy = perp.dy - pointFound.dy;
+
+  //TODO: тут не правильно. Это другие пиксели, нужно посмотреть на расстояние между центрами маркера
+  var elevation = compensateDistance(pdy.abs(), pitch);
 
   return {
     'pixel_distance': distance,
     'distance_cm': pixelsToCm(distance),
+    'elevation_cm': pixelsToCm(elevation),
     'handle_point_x': pointFound.dx,
     'handle_point_y': pointFound.dy,
   };

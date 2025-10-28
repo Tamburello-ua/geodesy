@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:geodesy/screen/utils/fov_utils.dart';
 import 'package:geodesy/screen/utils/position_data.dart';
-import 'package:geodesy/screen/widget/combo_compensator.dart';
+import 'package:geodesy/screen/widget/data_info.dart';
 import 'package:geodesy/screen/widget/compass.dart';
 import 'package:geodesy/screen/widget/geo_point_widget.dart';
 import 'package:geodesy/screen/widget/gps_path_widget.dart';
@@ -35,9 +35,9 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
 
   List<MarkerDetection> _detectedMarkers = [];
   String? _errorMessage;
-  bool _isInitializing = true;
-  bool _isAvailable = false;
-  bool init = true;
+  bool _isInitializing = false;
+  // bool _isAvailable = false;
+  // bool init = true;
 
   // Настройки
   final ArucoDictionary _currentDictionary = ArucoDictionary.dict4x4_50;
@@ -60,9 +60,10 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   List<Position> positions = [];
   List<Position> filteredPositions = [];
   final processor = KalmanFilter();
+  Size previewSize = Size.zero;
 
   final showGpsPath = false;
-  final showBottomText = true;
+  final showBottomText = false;
   final showDebug = false;
   final showOpticPath = true;
 
@@ -71,7 +72,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   final double VERTICAL_FOV = 63.1;
   final double HORIZONTAL_FOV = 49.7;
 
-  Size previewSize = Size.zero;
   Map<String, dynamic> compensated = {};
   final FOVCalibration fovCalibration = FOVCalibration();
 
@@ -99,8 +99,8 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   Future<void> _checkAvailabilityAndStart() async {
     bool available = await MotionCore.isAvailable();
     if (!mounted) return;
-    setState(() => _isAvailable = available);
-    if (_isAvailable) _startMotionListening();
+    // setState(() => _isAvailable = available);
+    if (available) _startMotionListening();
   }
 
   void _handlePositionStream(Position position) {
@@ -133,9 +133,9 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
       print(position.toString());
     });
 
-    if (init) {
-      init = false;
-    }
+    // if (init) {
+    //   init = false;
+    // }
   }
 
   Future<void> _initializeAll() async {
@@ -266,9 +266,12 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
               _targetPoint = getHandleBottom(
                 detectedMarkers: _detectedMarkers,
                 pitch: finalPitch,
+                roll: finalRoll,
                 distanceToHandleBottomMM: 80.0,
                 distanceBetweenMarkersMM: 100.0,
                 orientation: _cameraController.sensorOrientation ?? 0,
+                size: previewSize,
+                verticalFovDegrees: VERTICAL_FOV,
               );
             });
             if (showDebug) {
@@ -351,7 +354,10 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                 aspectRatio: aspectRatio,
                 child: Stack(
                   children: [
-                    Positioned.fill(child: _buildCameraPreview()),
+                    if (_cameraController.isInitialized)
+                      Positioned.fill(
+                        child: CameraPreview(_cameraController.controller!),
+                      ),
                     Positioned.fill(
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.75),
@@ -384,25 +390,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-
-                    Positioned.fill(
-                      child: ComboCompensator(finalPitch, finalRoll, finalYaw),
-                    ),
-
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: SizedBox(
-                        height: 100,
-
-                        child: CompassOverlayWidget(
-                          currentAzimuth: finalYaw,
-                          magneticAzimuth: magneticYaw,
-                          horizontalFOV: VERTICAL_FOV,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -426,9 +413,22 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
             if (_isInitializing)
               const Center(child: CircularProgressIndicator()),
 
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: DataInfoWidget(
+                // finalPitch: finalPitch,
+                // finalRoll: finalRoll,
+                // finalYaw: finalYaw,
+                distanceCm: _targetPoint['distance_cm'] ?? 0.0,
+                elevation: _targetPoint['elevation_cm'] ?? 0.0,
+              ),
+            ),
+
             if (showOpticPath)
               Positioned(
-                bottom: 0,
+                bottom: 100,
                 left: 0,
                 right: 0,
                 child: Center(
@@ -456,6 +456,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
+
             if (showBottomText)
               Positioned(
                 bottom: 0,
@@ -468,16 +469,24 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                   showGpsCoordinates: false,
                 ),
               ),
+
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SizedBox(
+                height: 100,
+
+                child: CompassOverlayWidget(
+                  currentAzimuth: finalYaw,
+                  magneticAzimuth: magneticYaw,
+                  horizontalFOV: VERTICAL_FOV,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildCameraPreview() {
-    if (!_cameraController.isInitialized) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    return CameraPreview(_cameraController.controller!);
   }
 }

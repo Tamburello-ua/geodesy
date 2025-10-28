@@ -96,7 +96,7 @@ class PathPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset originOffset = Offset(size.width / 2, size.height * 0.9);
+    final Offset originOffset = Offset(size.width / 2, size.height * 0.95);
     final double viewRadiusCm = ((distanceCm / 100.0).ceil() + 1) * 100.0;
     final double availableHeightPx = originOffset.dy;
     final double pixelsPerCm = availableHeightPx / viewRadiusCm;

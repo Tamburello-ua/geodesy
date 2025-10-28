@@ -90,7 +90,11 @@ class ArucoOverlayPainter extends CustomPainter {
     canvas.drawCircle(tPoint, 2.0, black);
   }
 
+  // ----------------------------------------------------------------------------------------------
+
   void _drawPerpendicular(Canvas canvas, Size size) {
+    if (midPoints.length < 2) return;
+
     var horizontPoints = calculateHorizontLine(
       verticalFovDegrees!,
       finalPitch!,
@@ -108,14 +112,15 @@ class ArucoOverlayPainter extends CustomPainter {
 
     final path = Path();
 
-    path.moveTo(perp[0].dx, perp[0].dy);
-    for (int i = 1; i < perp.length; i++) {
-      path.lineTo(perp[i].dx, perp[i].dy);
-    }
+    path.moveTo(midPoints[0].dx, midPoints[0].dy);
+    path.lineTo(perp.dx, perp.dy);
+
     path.close();
 
     canvas.drawPath(path, paint);
   }
+
+  // ----------------------------------------------------------------------------------------------
 
   void _drawPointer(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);

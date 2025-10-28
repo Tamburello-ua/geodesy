@@ -151,14 +151,14 @@ class _CompassPainter extends CustomPainter {
       bold: true,
     );
 
-    _drawText(
-      canvas,
-      magneticAzimuth.toStringAsFixed(1),
-      Offset(centerX, centerY - 70), // Чуть выше маркера
-      color: Colors.deepOrangeAccent,
-      fontSize: 16.0,
-      bold: true,
-    );
+    // _drawText(
+    //   canvas,
+    //   magneticAzimuth.toStringAsFixed(1),
+    //   Offset(centerX, centerY - 70), // Чуть выше маркера
+    //   color: Colors.deepOrangeAccent,
+    //   fontSize: 16.0,
+    //   bold: true,
+    // );
   }
 
   // Вспомогательная функция для получения N, E, S, W

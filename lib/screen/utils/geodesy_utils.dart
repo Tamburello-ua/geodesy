@@ -14,10 +14,7 @@ void calculateDestinationPoint(
   final int? sensorOrientation,
 ) {}
 
-List<Offset> findPerpendicularProjection(
-  List<Offset> segmentAB,
-  Offset pointP,
-) {
+Offset findPerpendicularProjection(List<Offset> segmentAB, Offset pointP) {
   if (segmentAB.length < 2) {
     throw ArgumentError('segmentAB должен содержать две точки (A и B).');
   }
@@ -44,7 +41,7 @@ List<Offset> findPerpendicularProjection(
   // Обработка случая, когда A и B совпадают
   if (dotVV == 0.0) {
     // Если отрезок AB имеет нулевую длину, проекция Q совпадает с A (и B)
-    return [pointP, pointA];
+    return pointA;
   }
 
   // 3. Вычисляем коэффициент t (скалярная проекция)
@@ -63,7 +60,7 @@ List<Offset> findPerpendicularProjection(
   final pointQ = Offset(pointQx, pointQy);
 
   // 6. Возвращаем [pointP, pointQ]
-  return [pointP, pointQ];
+  return pointQ;
 }
 
 List<Offset> calculateHorizontLine(
