@@ -72,9 +72,9 @@ class ArucoOverlayPainter extends CustomPainter {
     if (showPointer != null && showPointer!) {
       _drawPointer(canvas, size);
     }
-    _drawTargetPoint(canvas, size, _scalePoint(targetPoint, size));
 
     _drawPerpendicular(canvas, size);
+    _drawTargetPoint(canvas, size, _scalePoint(targetPoint, size));
   }
 
   void _drawTargetPoint(Canvas canvas, Size size, Offset tPoint) {
@@ -82,8 +82,39 @@ class ArucoOverlayPainter extends CustomPainter {
       ..color = const Color.fromARGB(255, 191, 255, 0)
       ..style = PaintingStyle.fill;
 
+    final Paint black = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
+
     canvas.drawCircle(tPoint, 4.0, paint);
-    canvas.drawCircle(tPoint, 2.0, paint);
+    canvas.drawCircle(tPoint, 2.0, black);
+  }
+
+  void _drawPerpendicular(Canvas canvas, Size size) {
+    var horizontPoints = calculateHorizontLine(
+      verticalFovDegrees!,
+      finalPitch!,
+      finalRoll!,
+      size,
+    );
+    var handlePoints = findPointOffsetFromLower(midPoints, 80);
+
+    var perp = findPerpendicularProjection(horizontPoints, handlePoints[1]);
+
+    final paint = Paint()
+      ..color = const Color.fromARGB(255, 191, 255, 0)
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+
+    path.moveTo(perp[0].dx, perp[0].dy);
+    for (int i = 1; i < perp.length; i++) {
+      path.lineTo(perp[i].dx, perp[i].dy);
+    }
+    path.close();
+
+    canvas.drawPath(path, paint);
   }
 
   void _drawPointer(Canvas canvas, Size size) {
@@ -144,33 +175,6 @@ class ArucoOverlayPainter extends CustomPainter {
     if (showIds) {
       _drawMarkerId(canvas, size, detection);
     }
-  }
-
-  void _drawPerpendicular(Canvas canvas, Size size) {
-    var horizontPoints = calculateHorizontLine(
-      verticalFovDegrees!,
-      finalPitch!,
-      finalRoll!,
-      size,
-    );
-    var handlePoints = findPointOffsetFromLower(midPoints, 80);
-
-    var perp = findPerpendicularProjection(horizontPoints, handlePoints[1]);
-
-    final paint = Paint()
-      ..color = const Color.fromARGB(255, 191, 255, 0)
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-
-    path.moveTo(perp[0].dx, perp[0].dy);
-    for (int i = 1; i < perp.length; i++) {
-      path.lineTo(perp[i].dx, perp[i].dy);
-    }
-    path.close();
-
-    canvas.drawPath(path, paint);
   }
 
   void _drawCenterLine(Canvas canvas, Size size, List<Offset> midPoints) {

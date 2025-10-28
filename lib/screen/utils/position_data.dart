@@ -2,43 +2,69 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:geodesy/models/marker_detection.dart';
 
+Offset rotatedPoint(Offset point, int orientation) {
+  double rotatedX, rotatedY;
+
+  switch (orientation) {
+    case 90:
+      rotatedX = point.dy;
+      rotatedY = point.dx;
+      break;
+    case 270:
+      rotatedX = point.dy;
+      rotatedY = point.dx;
+      break;
+
+    default:
+      rotatedX = point.dx;
+      rotatedY = point.dy;
+      break;
+  }
+
+  return Offset(rotatedX, rotatedY);
+}
+
 Map<String, double> getHandleBottom({
   required List<MarkerDetection> detectedMarkers,
   required double pitch,
   required double distanceToHandleBottomMM,
   double distanceBetweenMarkersMM = 100.0,
+  required int orientation,
 }) {
   if (detectedMarkers.isEmpty || detectedMarkers.length < 2) {
     return {'pixel_distance': 0.0, 'distance_cm': 0.0};
   }
-  Offset lowerPoint;
-  Offset upperPoint;
+  Offset pointL;
+  Offset pointU;
 
-  if (detectedMarkers[0].center.dy > detectedMarkers[1].center.dy) {
-    lowerPoint = detectedMarkers[1].center;
-    upperPoint = detectedMarkers[0].center;
+  var p1 = rotatedPoint(detectedMarkers[0].center, orientation);
+  var p2 = rotatedPoint(detectedMarkers[1].center, orientation);
+
+  if (p1.dy < p2.dy) {
+    pointL = p2;
+    pointU = p1;
   } else {
-    lowerPoint = detectedMarkers[0].center;
-    upperPoint = detectedMarkers[1].center;
+    pointL = p1;
+    pointU = p2;
   }
 
-  final dx = upperPoint.dx - lowerPoint.dx;
-  final dy = upperPoint.dy - lowerPoint.dy;
+  final dx = pointL.dx - pointU.dx;
+  final dy = pointL.dy - pointU.dy;
 
   final distance = compensateDistance(sqrt(dx * dx + dy * dy), pitch);
 
-  final vector = upperPoint - lowerPoint;
+  final vector = pointL - pointU;
   final t = distanceToHandleBottomMM / distanceBetweenMarkersMM;
-  final newPointDx = lowerPoint.dx - t * vector.dx;
-  final newPointDy = lowerPoint.dy - t * vector.dy;
+  final newPointDx = pointL.dx + t * vector.dx;
+  final newPointDy = pointL.dy + t * vector.dy;
 
-  final foundPoint = Offset(newPointDx, newPointDy);
+  final pointFound = Offset(newPointDx, newPointDy);
 
   return {
     'pixel_distance': distance,
     'distance_cm': pixelsToCm(distance),
-    'handle_point_x': foundPoint.dx,
-    'handle_point_y': foundPoint.dy,
+    'handle_point_x': pointFound.dx,
+    'handle_point_y': pointFound.dy,
   };
 }
 
@@ -53,9 +79,11 @@ Map<String, double> getPositionData(
   final dx = detectedMarkers[1].center.dx - detectedMarkers[0].center.dx;
   final dy = detectedMarkers[1].center.dy - detectedMarkers[0].center.dy;
   final distance = compensateDistance(sqrt(dx * dx + dy * dy), pitch);
+  final distance_raw = sqrt(dx * dx + dy * dy);
+
   return {
     'pixel_distance': distance,
-    // 'geminy_pixel_distance': compensateDistance(distance, pitch),
+    'pixel_distance_raw': distance_raw,
     'distance_cm': pixelsToCm(distance),
     // 'optical_distance_cm': distanceFromPixels_optical(distance),
   };

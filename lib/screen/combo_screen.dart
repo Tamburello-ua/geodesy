@@ -161,6 +161,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
     bool allGranted = statuses.values.every((status) => status.isGranted);
 
     if (!allGranted) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -267,6 +268,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                 pitch: finalPitch,
                 distanceToHandleBottomMM: 80.0,
                 distanceBetweenMarkersMM: 100.0,
+                orientation: _cameraController.sensorOrientation ?? 0,
               );
             });
             if (showDebug) {
@@ -376,8 +378,8 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                             verticalFovDegrees: VERTICAL_FOV,
                             showPointer: true,
                             targetPoint: Offset(
-                              _targetPoint['handle_point_x'] ?? 0.0,
                               _targetPoint['handle_point_y'] ?? 0.0,
+                              _targetPoint['handle_point_x'] ?? 0.0,
                             ),
                           ),
                         ),
@@ -436,7 +438,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                     detectedMarkers: _detectedMarkers,
                     verticalFovDegrees: VERTICAL_FOV,
                     horizontalFovDegrees: HORIZONTAL_FOV,
-                    targetPointY: _targetPoint['handle_point_y'] ?? 0.0,
+                    targetPointX: _targetPoint['handle_point_x'] ?? 0.0,
                     originalFrameWidth: previewSize.height,
                   ),
                 ),
@@ -463,6 +465,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                   detectedMarkers: _detectedMarkers,
                   userPosition: _userPosition,
                   finalPitch: finalPitch,
+                  showGpsCoordinates: false,
                 ),
               ),
           ],

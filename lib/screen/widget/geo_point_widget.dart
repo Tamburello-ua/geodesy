@@ -10,7 +10,7 @@ class GeoPointWidget extends StatelessWidget {
   final List<MarkerDetection> detectedMarkers;
   final double verticalFovDegrees;
   final double horizontalFovDegrees;
-  final double targetPointY;
+  final double targetPointX;
   final double originalFrameWidth;
 
   const GeoPointWidget({
@@ -21,7 +21,7 @@ class GeoPointWidget extends StatelessWidget {
     required this.detectedMarkers,
     required this.verticalFovDegrees,
     required this.horizontalFovDegrees,
-    required this.targetPointY,
+    required this.targetPointX,
     required this.originalFrameWidth,
   });
 
@@ -41,7 +41,7 @@ class GeoPointWidget extends StatelessWidget {
             azimuth: azimuth,
             distanceCm: distanceCm,
             horizontalFovDegrees: horizontalFovDegrees,
-            targetPointY: targetPointY,
+            targetPointX: targetPointX,
             originalFrameWidth: originalFrameWidth,
           ),
           child: Container(),
@@ -57,7 +57,7 @@ class PathPainter extends CustomPainter {
   final double distanceCm;
   final double horizontalFovDegrees;
 
-  final double targetPointY;
+  final double targetPointX;
   final double originalFrameWidth;
 
   double offsetXInoriginalFrame = 0.0;
@@ -90,7 +90,7 @@ class PathPainter extends CustomPainter {
     required this.azimuth,
     required this.distanceCm,
     required this.horizontalFovDegrees,
-    required this.targetPointY,
+    required this.targetPointX,
     required this.originalFrameWidth,
   });
 
@@ -107,7 +107,7 @@ class PathPainter extends CustomPainter {
 
     offsetXInoriginalFrame = calculateOffsetFromCenter(
       originalFrameWidth,
-      targetPointY,
+      targetPointX,
     );
 
     _drawTargetPoint(
@@ -201,7 +201,7 @@ class PathPainter extends CustomPainter {
     );
 
     final textStyle = TextStyle(
-      color: Colors.white.withOpacity(0.6),
+      color: Colors.white.withValues(alpha: 0.6),
       fontSize: 10,
     );
 

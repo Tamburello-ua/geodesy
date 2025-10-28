@@ -8,6 +8,7 @@ class PositionData extends StatelessWidget {
   final Position? userPosition;
   final Map<String, double>? motionData;
   final double? finalPitch;
+  final bool showGpsCoordinates;
 
   const PositionData({
     super.key,
@@ -15,6 +16,7 @@ class PositionData extends StatelessWidget {
     this.userPosition,
     this.motionData,
     this.finalPitch,
+    this.showGpsCoordinates = true,
   });
 
   @override
@@ -31,7 +33,7 @@ class PositionData extends StatelessWidget {
                     child: Text(
                       [
                         "Pixel distance: ${data['pixel_distance']?.toStringAsFixed(3)}",
-                        // "Compensate1 distance: ${data['geminy_pixel_distance']?.toStringAsFixed(3)}",
+                        // "RAW distance: ${data['pixel_distance_raw']?.toStringAsFixed(3)}",
                         "Distance (cm): ${data['distance_cm']?.toStringAsFixed(3)}",
                         // "Optical Distance (cm): ${data['optical_distance_cm']?.toStringAsFixed(3)}",
                       ].join('\n'),
@@ -39,7 +41,7 @@ class PositionData extends StatelessWidget {
                     ),
                   )
                 : SizedBox.shrink(),
-            userPosition != null
+            userPosition != null && showGpsCoordinates
                 ? Text(
                     'Latitude    ${userPosition?.latitude}\nLongitude ${userPosition?.longitude}\n',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
