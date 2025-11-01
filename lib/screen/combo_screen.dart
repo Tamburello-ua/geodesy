@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:geodesy/screen/utils/camera_focal_length.dart';
 import 'package:geodesy/screen/utils/fov_utils.dart';
 import 'package:geodesy/screen/utils/position_data.dart';
 import 'package:geodesy/screen/widget/data_info.dart';
@@ -94,6 +95,20 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
     _compassSubscription.cancel();
 
     super.dispose();
+  }
+
+  Future<void> getFL() async {
+    final allInfo = await CameraFocalLength.getCameraFullInfo(0);
+    print(allInfo);
+
+    final all = await CameraFocalLength.getAllCameraFocalLengths();
+    print(all);
+
+    final back = await CameraFocalLength.getBackCameraFocalLength();
+    print("Back camera focal lengths: $back");
+
+    final sensor = await CameraFocalLength.getCameraSensorSize("0");
+    print("Sensor size: $sensor");
   }
 
   Future<void> _checkAvailabilityAndStart() async {
@@ -298,6 +313,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
         },
       );
 
+      getFL();
       setState(() {
         _isInitializing = false;
       });

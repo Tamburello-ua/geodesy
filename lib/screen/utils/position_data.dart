@@ -83,7 +83,7 @@ Map<String, double> getHandleBottom({
   return {
     'pixel_distance': distance,
     'distance_cm': pixelsToCm(distance),
-    'elevation_cm': pixelsToCm(elevation),
+    'elevation_cm': pixelsToElevationCm(distance, 10.0, elevation),
     'handle_point_x': pointFound.dx,
     'handle_point_y': pointFound.dy,
   };
@@ -126,4 +126,13 @@ double pixelsToCm(double pixels) {
   final bFit = -1.008588; // коэффициент сжатия
 
   return pow(pixels / aFit, 1 / bFit).toDouble();
+}
+
+double pixelsToElevationCm(
+  double distBetweenMarkerPix,
+  double distBetweenMarkerCm,
+  double pixels,
+) {
+  final scale = distBetweenMarkerCm / distBetweenMarkerPix;
+  return pixels * scale;
 }
