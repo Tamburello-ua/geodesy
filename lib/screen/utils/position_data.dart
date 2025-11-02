@@ -25,6 +25,28 @@ Offset rotatedPoint(Offset point, int orientation) {
   return Offset(rotatedX, rotatedY);
 }
 
+double? getRealDistanceMM(List<MarkerDetection> markers) {
+  final m1 = markers.cast<MarkerDetection?>().firstWhere(
+    (m) => m?.id == 0,
+    orElse: () => null,
+  );
+  final m2 = markers.cast<MarkerDetection?>().firstWhere(
+    (m) => m?.id == 1,
+    orElse: () => null,
+  );
+
+  if (m1?.tvec == null || m2?.tvec == null) return null;
+
+  final t1 = m1!.tvec!;
+  final t2 = m2!.tvec!;
+
+  final dx = t1[0] - t2[0];
+  final dy = t1[1] - t2[1];
+  final dz = t1[2] - t2[2];
+
+  return sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 Map<String, double> getHandleBottom({
   required List<MarkerDetection> detectedMarkers,
   required double pitch,

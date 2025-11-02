@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
-
-import '../cv/cv_service.dart';
-import '../../models/marker_detection.dart';
-import '../../models/aruco_settings.dart';
+import 'package:geodesy/features/cv/camera_intrinsics.dart';
+import 'package:geodesy/features/cv/cv_service.dart';
+import 'package:geodesy/models/aruco_settings.dart';
+import 'package:geodesy/models/marker_detection.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// Контроллер для камеры и распознавания ArUco
 class ArucoScannerCameraController {
@@ -32,6 +34,9 @@ class ArucoScannerCameraController {
   double? _currentImageHeight;
 
   final CvService _cvService = CvService();
+
+  CameraIntrinsics? _intrinsics;
+  final double _markerSizeMM = 30.0;
 
   /// Поток для обнаруженных маркеров
   Stream<List<MarkerDetection>> get detectionStream =>
@@ -97,6 +102,8 @@ class ArucoScannerCameraController {
         return false;
       }
 
+      await _calculateIntrinsics(63.1);
+
       // Инициализировать сервис CV
       final cvInitialized = await _cvService.init(
         dictionary: dictionary,
@@ -140,6 +147,24 @@ class ArucoScannerCameraController {
       print('Общая ошибка при инициализации камеры: $e');
       return false;
     }
+  }
+
+  Future<void> _calculateIntrinsics(double fovDegrees) async {
+    if (_controller == null) return;
+
+    final size = _controller!.value.previewSize!;
+    final width = size.width;
+    final height = size.height;
+
+    final double fy = (height / 2) / tan(radians(fovDegrees / 2));
+    final double fx = fy;
+
+    _intrinsics = CameraIntrinsics(
+      fx: fx,
+      fy: fy,
+      cx: width / 2,
+      cy: height / 2,
+    );
   }
 
   /// Конвертирует CameraResolution в ResolutionPreset
@@ -270,6 +295,18 @@ class ArucoScannerCameraController {
         final height = message['height'] as int?;
         final dictionary = message['dictionary'] as ArucoDictionary?;
         final settings = message['settings'] as PerformanceSettings?;
+        final markerSizeMM =
+            (message['markerSizeMM'] as num?)?.toDouble() ?? 0.0;
+        final intrinsicsMap = message['intrinsics'] as Map<String, dynamic>?;
+
+        final intrinsics = intrinsicsMap != null
+            ? CameraIntrinsics(
+                fx: (intrinsicsMap['fx'] as num).toDouble(),
+                fy: (intrinsicsMap['fy'] as num).toDouble(),
+                cx: (intrinsicsMap['cx'] as num).toDouble(),
+                cy: (intrinsicsMap['cy'] as num).toDouble(),
+              )
+            : null;
 
         // print(
         //   'Isolate processing image: ${imageBytes?.length} bytes, $width x $height',
@@ -296,21 +333,25 @@ class ArucoScannerCameraController {
             );
           }
 
-          // Распознать маркеры
-          final detections = await cvService.detectMarkersFromImageBytes(
-            Uint8List.fromList(imageBytes),
-            width,
-            height,
-          );
-          // print(
-          //   'Sending detections from isolate: type=${detections.runtimeType}, count=${detections.length}',
-          // );
-          if (mainResponseSendPort != null) {
-            mainResponseSendPort?.send(
-              detections,
-            ); // Отправляем в правильный SendPort
-          } else {
-            print('Ошибка: mainResponseSendPort не инициализирован');
+          if (intrinsics != null) {
+            // Распознать маркеры
+            final detections = await cvService.detectMarkersFromImageBytes(
+              Uint8List.fromList(imageBytes),
+              width,
+              height,
+              markerSizeMM: markerSizeMM,
+              intrinsics: intrinsics,
+            );
+            // print(
+            //   'Sending detections from isolate: type=${detections.runtimeType}, count=${detections.length}',
+            // );
+            if (mainResponseSendPort != null) {
+              mainResponseSendPort?.send(
+                detections,
+              ); // Отправляем в правильный SendPort
+            } else {
+              print('Ошибка: mainResponseSendPort не инициализирован');
+            }
           }
         }
       }
@@ -339,7 +380,7 @@ class ArucoScannerCameraController {
     if (showDebug) {
       print('Processing image: ${cameraImage.width}x${cameraImage.height}');
     }
-    if (_isolateSendPort == null || _isProcessingFrame) {
+    if (_isolateSendPort == null || _isProcessingFrame || _intrinsics == null) {
       if (showDebug) {
         print(
           'Skipping image processing: isolateSendPort=$_isolateSendPort, isProcessingFrame=$_isProcessingFrame',
@@ -372,6 +413,13 @@ class ArucoScannerCameraController {
       'height': height,
       'dictionary': _cvService.currentDictionary,
       'settings': _cvService.performanceSettings,
+      'markerSizeMM': _markerSizeMM,
+      'intrinsics': {
+        'fx': _intrinsics!.fx,
+        'fy': _intrinsics!.fy,
+        'cx': _intrinsics!.cx,
+        'cy': _intrinsics!.cy,
+      },
     });
   }
 

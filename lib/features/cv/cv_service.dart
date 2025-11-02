@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:geodesy/features/cv/camera_intrinsics.dart';
 import 'package:opencv_dart/opencv_dart.dart' as cv;
 import '../../models/marker_detection.dart';
 import '../../models/aruco_settings.dart';
@@ -54,8 +55,10 @@ class CvService {
   Future<List<MarkerDetection>> detectMarkersFromImageBytes(
     Uint8List imageBytes,
     int width,
-    int height,
-  ) async {
+    int height, {
+    required double markerSizeMM,
+    required CameraIntrinsics intrinsics,
+  }) async {
     if (!_isInitialized || _detector == null) {
       print('Ошибка: CvService не инициализирован или детектор отсутствует');
       return [];
@@ -65,6 +68,12 @@ class CvService {
       if (showDebug) print('Начало распознавания маркеров из изображения');
 
       final mat = cv.Mat.zeros(height, width, cv.MatType.CV_8UC1);
+
+      if (mat.isEmpty) {
+        print('Ошибка: Создана пустая матрица');
+        mat.dispose();
+        return [];
+      }
 
       try {
         mat.data.setAll(0, imageBytes);
@@ -95,6 +104,86 @@ class CvService {
       }
 
       final detections = <MarkerDetection>[];
+
+      final cameraMatrix = cv.Mat.zeros(3, 3, cv.MatType.CV_64FC1);
+      final data = cameraMatrix.data as Float64List;
+
+      data[0] = intrinsics.fx;
+      data[1] = 0;
+      data[2] = intrinsics.cx;
+
+      data[3] = 0;
+      data[4] = intrinsics.fy;
+      data[5] = intrinsics.cy;
+
+      data[6] = 0;
+      data[7] = 0;
+      data[8] = 1;
+
+      final distCoeffs = cv.Mat.zeros(4, 1, cv.MatType.CV_64FC1);
+
+      for (int i = 0; i < ids.length; i++) {
+        final id = ids[i];
+        final cornerList = corners[i];
+
+        final corners2d = cornerList.map((p) => Offset(p.x, p.y)).toList();
+
+        // 3D модель маркера
+        final objPoints = <cv.Point3f>[
+          cv.Point3f(-markerSizeMM / 2, markerSizeMM / 2, 0),
+          cv.Point3f(markerSizeMM / 2, markerSizeMM / 2, 0),
+          cv.Point3f(markerSizeMM / 2, -markerSizeMM / 2, 0),
+          cv.Point3f(-markerSizeMM / 2, -markerSizeMM / 2, 0),
+        ];
+
+        final objData = objPoints.expand((p) => [p.x, p.y, p.z]).toList();
+
+        final objectPoints = cv.Mat.fromList(
+          4,
+          1,
+          cv.MatType.CV_32FC3,
+          objData,
+        );
+
+        // 2D углы
+        final imgData = cornerList.expand((p) => [p.x, p.y]).toList();
+
+        final imagePoints = cv.Mat.fromList(4, 1, cv.MatType.CV_32FC2, imgData);
+
+        final (success, rvec, tvec) = cv.solvePnP(
+          objectPoints,
+          imagePoints,
+          cameraMatrix,
+          distCoeffs,
+        );
+
+        objectPoints.dispose();
+        imagePoints.dispose();
+
+        if (success) {
+          detections.add(
+            MarkerDetection(
+              id: id,
+              corners: corners2d,
+              rvec: [
+                rvec.at<double>(0, 0),
+                rvec.at<double>(1, 0),
+                rvec.at<double>(2, 0),
+              ],
+              tvec: [
+                tvec.at<double>(0, 0),
+                tvec.at<double>(1, 0),
+                tvec.at<double>(2, 0),
+              ],
+              confidence: 1.0,
+            ),
+          );
+
+          // Обязательно освободить!
+          rvec.dispose();
+          tvec.dispose();
+        }
+      }
 
       if (ids.isNotEmpty) {
         for (int i = 0; i < ids.length; i++) {

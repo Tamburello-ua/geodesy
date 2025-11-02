@@ -278,6 +278,9 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                 _handleCalibration(_detectedMarkers);
               }
 
+              final distance = getRealDistanceMM(_detectedMarkers);
+              print('Реальное расстояние: ${distance?.toStringAsFixed(1)} мм');
+
               _targetPoint = getHandleBottom(
                 detectedMarkers: _detectedMarkers,
                 pitch: finalPitch,
