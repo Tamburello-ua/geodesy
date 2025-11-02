@@ -27,11 +27,11 @@ Offset rotatedPoint(Offset point, int orientation) {
 
 double? getRealDistanceMM(List<MarkerDetection> markers) {
   final m1 = markers.cast<MarkerDetection?>().firstWhere(
-    (m) => m?.id == 0,
+    (m) => m?.id == 1,
     orElse: () => null,
   );
   final m2 = markers.cast<MarkerDetection?>().firstWhere(
-    (m) => m?.id == 1,
+    (m) => m?.id == 2,
     orElse: () => null,
   );
 

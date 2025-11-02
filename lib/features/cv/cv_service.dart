@@ -106,21 +106,26 @@ class CvService {
       final detections = <MarkerDetection>[];
 
       final cameraMatrix = cv.Mat.zeros(3, 3, cv.MatType.CV_64FC1);
-      final data = cameraMatrix.data as Float64List;
 
-      data[0] = intrinsics.fx;
-      data[1] = 0;
-      data[2] = intrinsics.cx;
+      cameraMatrix.set(0, 0, intrinsics.fx);
+      cameraMatrix.set(0, 1, 0);
+      cameraMatrix.set(0, 2, intrinsics.cx);
 
-      data[3] = 0;
-      data[4] = intrinsics.fy;
-      data[5] = intrinsics.cy;
+      cameraMatrix.set(1, 0, 0);
+      cameraMatrix.set(1, 1, intrinsics.fy);
+      cameraMatrix.set(1, 2, intrinsics.cy);
 
-      data[6] = 0;
-      data[7] = 0;
-      data[8] = 1;
+      cameraMatrix.set(2, 0, 0);
+      cameraMatrix.set(2, 1, 0);
+      cameraMatrix.set(2, 2, 1);
 
       final distCoeffs = cv.Mat.zeros(4, 1, cv.MatType.CV_64FC1);
+      if (showDebug) {
+        print(
+          'fx=${intrinsics.fx}, fy=${intrinsics.fy}, cx=${intrinsics.cx}, cy=${intrinsics.cy}',
+        );
+        print('width=$width, height=$height');
+      }
 
       for (int i = 0; i < ids.length; i++) {
         final id = ids[i];
