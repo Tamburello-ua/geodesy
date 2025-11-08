@@ -59,7 +59,7 @@ class ArucoOverlayPainter extends CustomPainter {
       for (final detection in detections) {
         midPoints.add(_scalePoint(detection.center, size));
       }
-      _drawCenterLine(canvas, size, midPoints);
+      // _drawCenterLine(canvas, size, midPoints);
     }
 
     if (verticalFovDegrees != null &&
@@ -112,7 +112,7 @@ class ArucoOverlayPainter extends CustomPainter {
 
     final path = Path();
 
-    path.moveTo(midPoints[0].dx, midPoints[0].dy);
+    path.moveTo(handlePoints[1].dx, handlePoints[1].dy);
     path.lineTo(perp.dx, perp.dy);
 
     path.close();

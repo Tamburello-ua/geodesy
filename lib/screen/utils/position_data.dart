@@ -77,8 +77,7 @@ Map<String, double> getHandleBottom({
   var perp = findPerpendicularProjection(horizontPoints, pointFound);
   var pdy = perp.dy - pointFound.dy;
 
-  //TODO: тут не правильно. Это другие пиксели, нужно посмотреть на расстояние между центрами маркера
-  var elevation = compensateDistance(pdy.abs(), pitch);
+  var elevation = compensateDistance(pdy, pitch);
 
   return {
     'pixel_distance': distance,

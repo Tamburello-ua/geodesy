@@ -7,7 +7,7 @@ import 'package:geodesy/screen/widget/data_info.dart';
 import 'package:geodesy/screen/widget/compass.dart';
 import 'package:geodesy/screen/widget/geo_point_widget.dart';
 import 'package:geodesy/screen/widget/gps_path_widget.dart';
-import 'package:geodesy/screen/widget/position_data.dart';
+import 'package:geodesy/screen/widget/calculate_info_data.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geodesy/features/camera/camera_controller.dart';
 import 'package:geodesy/features/overlay/aruco_overlay.dart';
@@ -478,7 +478,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: PositionData(
+                child: CalculateInfoData(
                   detectedMarkers: _detectedMarkers,
                   userPosition: _userPosition,
                   finalPitch: finalPitch,

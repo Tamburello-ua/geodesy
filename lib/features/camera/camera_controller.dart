@@ -2,10 +2,9 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
-
-import '../cv/cv_service.dart';
-import '../../models/marker_detection.dart';
-import '../../models/aruco_settings.dart';
+import 'package:geodesy/features/cv/cv_service.dart';
+import 'package:geodesy/models/aruco_settings.dart';
+import 'package:geodesy/models/marker_detection.dart';
 
 /// Контроллер для камеры и распознавания ArUco
 class ArucoScannerCameraController {
@@ -158,18 +157,21 @@ class ArucoScannerCameraController {
 
   /// Запускает изолят для распознавания маркеров
   Future<void> _startIsolate() async {
-    // Закрыть существующие ReceivePort, если они есть
     if (_receivePort != null) {
-      print('Закрытие существующего ReceivePort для данных');
+      if (showDebug) {
+        print('Закрытие существующего ReceivePort для данных');
+      }
       _receivePort!.close();
       _receivePort = null;
     }
     if (_sendPortReceivePort != null) {
-      print('Закрытие существующего ReceivePort для SendPort');
+      if (showDebug) {
+        print('Закрытие существующего ReceivePort для SendPort');
+      }
       _sendPortReceivePort!.close();
       _sendPortReceivePort = null;
     }
-    // Завершить существующий изолят, если он есть
+
     if (_isolate != null) {
       print('Завершение существующего изолята');
       _isolate!.kill(priority: Isolate.immediate);
@@ -177,31 +179,33 @@ class ArucoScannerCameraController {
     }
 
     try {
-      // Создать ReceivePort для получения SendPort
       _sendPortReceivePort = ReceivePort();
-      print('Создан ReceivePort для SendPort');
+      if (showDebug) {
+        print('Создан ReceivePort для SendPort');
+      }
 
-      // Запустить изолят
       _isolate = await Isolate.spawn(
         _detectionIsolate,
         _sendPortReceivePort!.sendPort,
       );
-      print('Изолят успешно создан');
+      if (showDebug) {
+        print('Изолят успешно создан');
+      }
 
-      // Получить SendPort изолята
       _isolateSendPort = await _sendPortReceivePort!.first;
-      print('Получен SendPort изолята : ${_isolateSendPort.hashCode}');
+      if (showDebug) {
+        print('Получен SendPort изолята : ${_isolateSendPort.hashCode}');
+      }
 
-      // Закрыть ReceivePort для SendPort после получения
       _sendPortReceivePort!.close();
       _sendPortReceivePort = null;
       print('ReceivePort для SendPort закрыт');
 
-      // Создать отдельный ReceivePort для данных
       _receivePort = ReceivePort();
-      print('Создан ReceivePort для данных: ${_receivePort.hashCode}');
+      if (showDebug) {
+        print('Создан ReceivePort для данных: ${_receivePort.hashCode}');
+      }
 
-      // Получать результаты из изолята через SendPort
       _receivePort!.listen(
         (data) {
           _isProcessingFrame = false;
@@ -227,9 +231,10 @@ class ArucoScannerCameraController {
         },
       );
 
-      // Отправить SendPort от _receivePort в изолят
-      _isolateSendPort!.send(_receivePort!.sendPort); // Новая строка
-      print('Sent main ReceivePort SendPort to isolate');
+      _isolateSendPort!.send(_receivePort!.sendPort);
+      if (showDebug) {
+        print('Sent main ReceivePort SendPort to isolate');
+      }
     } catch (e) {
       print('Ошибка запуска изолята: $e');
       rethrow;

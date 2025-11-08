@@ -89,17 +89,7 @@ List<Offset> calculateHorizontLine(
   return [p1, p2];
 }
 
-List<Offset> findPointOffsetFromLower(
-  List<Offset> midPoints,
-  double distanceInMM, {
-  double totalDistanceInMM = 100.0,
-}) {
-  if (midPoints.length < 2) {
-    throw ArgumentError(
-      'List<Offset> midPoints повинен містити принаймні дві точки.',
-    );
-  }
-
+List<Offset> upperToLowerPoints(List<Offset> midPoints) {
   final p1 = midPoints[0];
   final p2 = midPoints[1];
 
@@ -116,6 +106,24 @@ List<Offset> findPointOffsetFromLower(
     lowerPoint = p2;
     upperPoint = p1;
   }
+  return [upperPoint, lowerPoint];
+}
+
+List<Offset> findPointOffsetFromLower(
+  List<Offset> midPoints,
+  double distanceInMM, {
+  double totalDistanceInMM = 100.0,
+}) {
+  if (midPoints.length < 2) {
+    throw ArgumentError(
+      'List<Offset> midPoints повинен містити принаймні дві точки.',
+    );
+  }
+
+  final points = upperToLowerPoints(midPoints);
+
+  final Offset lowerPoint = points[1];
+  final Offset upperPoint = points[0];
 
   // 2. Базовий вектор (напрямок)
   // Вектор від нижньої точки до верхньої: V = P_upper - P_lower

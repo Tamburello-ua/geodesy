@@ -3,14 +3,14 @@ import 'package:geodesy/models/marker_detection.dart';
 import 'package:geodesy/screen/utils/position_data.dart';
 import 'package:geolocator/geolocator.dart';
 
-class PositionData extends StatelessWidget {
+class CalculateInfoData extends StatelessWidget {
   final List<MarkerDetection> detectedMarkers;
   final Position? userPosition;
   final Map<String, double>? motionData;
   final double? finalPitch;
   final bool showGpsCoordinates;
 
-  const PositionData({
+  const CalculateInfoData({
     super.key,
     required this.detectedMarkers,
     this.userPosition,

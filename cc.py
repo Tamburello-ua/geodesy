@@ -9,7 +9,7 @@ CHESSBOARD_SIZE = (8, 6)  # 9x6 часто стандарт
 SQUARE_SIZE = 25.0  # мм (укажи реальный размер клетки)
 
 # === ПУТИ ===
-images_dir = "camera_calibrate"
+images_dir = "camera_calibrate/4_nov"
 pattern = os.path.join(images_dir, "*.jpg")
 
 # === МАССИВЫ ДЛЯ ТОЧЕК ===
