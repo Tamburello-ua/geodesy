@@ -79,6 +79,8 @@ Map<String, double> getHandleBottom({
 
   var elevation = compensateDistance(pdy, pitch);
 
+  print('Distance px: $distance');
+
   return {
     'pixel_distance': distance,
     'distance_cm': pixelsToCm(distance),

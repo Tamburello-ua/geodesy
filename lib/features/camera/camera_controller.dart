@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:geodesy/features/cv/cv_service.dart';
 import 'package:geodesy/models/aruco_settings.dart';
+import 'package:geodesy/models/camera_calibration.dart';
 import 'package:geodesy/models/marker_detection.dart';
 
 /// Контроллер для камеры и распознавания ArUco
@@ -32,6 +33,9 @@ class ArucoScannerCameraController {
 
   final CvService _cvService = CvService();
 
+  CameraCalibration? _cameraCalibration;
+  bool _useUndistortion = false;
+
   /// Поток для обнаруженных маркеров
   Stream<List<MarkerDetection>> get detectionStream =>
       _detectionStreamController?.stream ?? const Stream.empty();
@@ -49,6 +53,37 @@ class ArucoScannerCameraController {
 
   // Геттер для ориентации сенсора камеры
   int? get sensorOrientation => _controller?.description.sensorOrientation;
+
+  void setCameraCalibration(CameraCalibration calibration) {
+    _cameraCalibration = calibration;
+    _useUndistortion = true;
+    print(
+      'Параметры калибровки камеры установлены. Коррекция дисторсии включена.',
+    );
+
+    // Отправляем калибровку в изолят
+    if (_isolateSendPort != null && _useUndistortion) {
+      _isolateSendPort!.send({
+        'type': 'calibration',
+        'calibration': calibration.toJson(),
+      });
+    }
+  }
+
+  void disableUndistortion() {
+    _useUndistortion = false;
+    if (_isolateSendPort != null) {
+      _isolateSendPort!.send({
+        'type': 'calibration',
+        'calibration': null, // Отправляем null чтобы отключить коррекцию
+      });
+    }
+    print('Коррекция дисторсии отключена.');
+  }
+
+  /// Включена ли коррекция дисторсии?
+  bool get isUndistortionEnabled =>
+      _useUndistortion && _cameraCalibration != null;
 
   /// Инициализирует камеру и изолят
   Future<bool> initialize({
@@ -268,6 +303,20 @@ class ArucoScannerCameraController {
         return;
       }
 
+      // Обработка сообщений с калибровкой
+      if (message is Map<String, dynamic> && message['type'] == 'calibration') {
+        final calibration = message['calibration'] as Map<String, dynamic>?;
+        if (calibration != null) {
+          print('Isolate received camera calibration data');
+          final cameraCalibration = CameraCalibration.fromJson(calibration);
+          cvService.setCameraCalibration(cameraCalibration);
+        } else {
+          print('Isolate disabled undistortion');
+          cvService.clearCameraCalibration();
+        }
+        return; // Важно: return чтобы не обрабатывать как изображение
+      }
+
       // Последующие сообщения — данные изображения
       if (message is Map<String, dynamic>) {
         final imageBytes = message['imageBytes'] as List<int>?;
@@ -275,6 +324,7 @@ class ArucoScannerCameraController {
         final height = message['height'] as int?;
         final dictionary = message['dictionary'] as ArucoDictionary?;
         final settings = message['settings'] as PerformanceSettings?;
+        final calibration = message['calibration'] as Map<String, dynamic>?;
 
         // print(
         //   'Isolate processing image: ${imageBytes?.length} bytes, $width x $height',
@@ -302,11 +352,31 @@ class ArucoScannerCameraController {
           }
 
           // Распознать маркеры
-          final detections = await cvService.detectMarkersFromImageBytes(
-            Uint8List.fromList(imageBytes),
-            width,
-            height,
-          );
+          // final detections = await cvService.detectMarkersFromImageBytes(
+          //   Uint8List.fromList(imageBytes),
+          //   width,
+          //   height,
+          // );
+
+          List<MarkerDetection> detections;
+
+          if (calibration != null) {
+            detections = await cvService
+                .detectMarkersFromImageBytesWithUndistortion(
+                  Uint8List.fromList(imageBytes),
+                  width,
+                  height,
+                  calibration, // Передаем параметры калибровки
+                );
+            // if (showDebug) print('Detection with undistortion applied');
+          } else {
+            // Обычное распознавание без коррекции
+            detections = await cvService.detectMarkersFromImageBytes(
+              Uint8List.fromList(imageBytes),
+              width,
+              height,
+            );
+          }
           // print(
           //   'Sending detections from isolate: type=${detections.runtimeType}, count=${detections.length}',
           // );
@@ -359,7 +429,6 @@ class ArucoScannerCameraController {
     _currentImageWidth = cameraImage.width.toDouble();
     _currentImageHeight = cameraImage.height.toDouble();
 
-    // --- ИСПРАВЛЕНИЕ: Создание чистого массива байтов без padding ---
     final imageBytesNoPadding = _getYPlaneWithoutPadding(cameraImage);
     final width = cameraImage.width;
     final height = cameraImage.height;
@@ -370,14 +439,20 @@ class ArucoScannerCameraController {
     }
     // --------------------------------------------------------------------
 
-    // Отправить изображение, словарь и настройки в изолят
-    _isolateSendPort!.send({
-      'imageBytes': imageBytesNoPadding, // Отправляем очищенные байты
+    final message = {
+      'type': 'image',
+      'imageBytes': imageBytesNoPadding,
       'width': width,
       'height': height,
       'dictionary': _cvService.currentDictionary,
       'settings': _cvService.performanceSettings,
-    });
+    };
+
+    if (_useUndistortion && _cameraCalibration != null) {
+      message['calibration'] = _cameraCalibration!.toJson();
+    }
+
+    _isolateSendPort!.send(message);
   }
 
   // Новая вспомогательная функция

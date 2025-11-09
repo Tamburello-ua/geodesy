@@ -182,24 +182,24 @@ class ArucoOverlayPainter extends CustomPainter {
     }
   }
 
-  void _drawCenterLine(Canvas canvas, Size size, List<Offset> midPoints) {
-    final paint = Paint()
-      ..color = Colors.red
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
+  // void _drawCenterLine(Canvas canvas, Size size, List<Offset> midPoints) {
+  //   final paint = Paint()
+  //     ..color = Colors.red
+  //     ..strokeWidth = strokeWidth
+  //     ..style = PaintingStyle.stroke;
 
-    final path = Path();
+  //   final path = Path();
 
-    path.moveTo(midPoints[0].dx, midPoints[0].dy);
-    for (int i = 1; i < midPoints.length; i++) {
-      path.lineTo(midPoints[i].dx, midPoints[i].dy);
-    }
-    path.close();
+  //   path.moveTo(midPoints[0].dx, midPoints[0].dy);
+  //   for (int i = 1; i < midPoints.length; i++) {
+  //     path.lineTo(midPoints[i].dx, midPoints[i].dy);
+  //   }
+  //   path.close();
 
-    canvas.drawPath(path, paint);
+  //   canvas.drawPath(path, paint);
 
-    // _drawHandleLine(canvas, size, midPoints);
-  }
+  //   // _drawHandleLine(canvas, size, midPoints);
+  // }
 
   void _drawMarkerBounds(Canvas canvas, Size size, MarkerDetection detection) {
     final paint = Paint()

@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter/services.dart';
+import 'package:geodesy/models/camera_calibration.dart';
 import 'package:geodesy/screen/utils/camera_focal_length.dart';
 import 'package:geodesy/screen/utils/fov_utils.dart';
 import 'package:geodesy/screen/utils/position_data.dart';
@@ -221,6 +225,14 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<CameraCalibration> _loadCalibrationData() async {
+    final jsonString = await rootBundle.loadString(
+      'assets/calibration_data.json',
+    );
+    final jsonData = json.decode(jsonString);
+    return CameraCalibration.fromJson(jsonData);
+  }
+
   /// Инициализирует камеру и начинает распознавание
   Future<void> _initializeCamera() async {
     setState(() {
@@ -261,6 +273,11 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
         }
         return;
       }
+
+      final calibration = await _loadCalibrationData();
+
+      // Устанавливаем калибровку
+      _cameraController.setCameraCalibration(calibration);
 
       // Запустить непрерывное распознавание сразу после инициализации
       _cameraController.startContinuousDetection();

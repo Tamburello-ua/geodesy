@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:geodesy/models/aruco_settings.dart';
+import 'package:geodesy/models/camera_calibration.dart';
+import 'package:geodesy/models/marker_detection.dart';
 import 'package:opencv_dart/opencv_dart.dart' as cv;
-import '../../models/marker_detection.dart';
-import '../../models/aruco_settings.dart';
 
 class CvService {
   bool _isInitialized = false;
@@ -15,6 +16,15 @@ class CvService {
   cv.ArucoDictionary? _dictionary;
   cv.ArucoDetectorParameters? _detectorParams;
   cv.ArucoDetector? _detector;
+
+  // Параметры для коррекции дисторсии
+  cv.Mat? _cameraMatrix;
+  cv.Mat? _distortionCoefficients;
+  cv.Mat? _optimalCameraMatrix;
+  cv.Mat? _map1;
+  cv.Mat? _map2;
+  int _currentWidth = 0;
+  int _currentHeight = 0;
 
   /// Инициализирован ли сервис?
   bool get isInitialized => _isInitialized;
@@ -50,19 +60,185 @@ class CvService {
     }
   }
 
+  /// Устанавливает параметры калибровки камеры для коррекции дисторсии
+  void setCameraCalibration(CameraCalibration calibration) {
+    try {
+      // Освобождаем старые ресурсы
+      _cameraMatrix?.release();
+      _distortionCoefficients?.release();
+      _optimalCameraMatrix?.release();
+      _map1?.release();
+      _map2?.release();
+
+      // Создаем матрицу камеры 3x3
+      _cameraMatrix = cv.Mat.fromList(
+        3,
+        3,
+        cv.MatType.CV_64FC1,
+        calibration.cameraMatrix,
+      );
+
+      // Создаем вектор коэффициентов дисторсии
+      _distortionCoefficients = cv.Mat.fromList(
+        1,
+        5,
+        cv.MatType.CV_64FC1,
+        calibration.distortionCoefficients,
+      );
+
+      print('Параметры калибровки камеры установлены');
+      print('Матрица камеры: ${calibration.cameraMatrix}');
+      print('Коэффициенты дисторсии: ${calibration.distortionCoefficients}');
+    } catch (e) {
+      print('Ошибка при установке параметров калибровки: $e');
+    }
+  }
+
+  /// Очищает параметры калибровки (отключает коррекцию дисторсии)
+  void clearCameraCalibration() {
+    _cameraMatrix?.release();
+    _distortionCoefficients?.release();
+    _optimalCameraMatrix?.release();
+    _map1?.release();
+    _map2?.release();
+
+    _cameraMatrix = null;
+    _distortionCoefficients = null;
+    _optimalCameraMatrix = null;
+    _map1 = null;
+    _map2 = null;
+
+    print('Коррекция дисторсии отключена');
+  }
+
+  void _computeUndistortMaps(int width, int height) {
+    if (_cameraMatrix == null || _distortionCoefficients == null) return;
+    if (_map1 != null &&
+        _map2 != null &&
+        _currentWidth == width &&
+        _currentHeight == height) {
+      return; // Карты уже вычислены для этого размера
+    }
+
+    try {
+      _map1?.release();
+      _map2?.release();
+
+      // Вычисляем оптимальную новую матрицу камеры
+      final (newCameraMatrix, roi) = cv.getOptimalNewCameraMatrix(
+        _cameraMatrix!,
+        _distortionCoefficients!,
+        (width, height), // Размер как кортеж
+        1.0, // alpha
+        newImgSize: (width, height), // newImgsize
+      );
+
+      // Инициализируем карты преобразования - функция возвращает кортеж
+      final (map1, map2) = cv.initUndistortRectifyMap(
+        _cameraMatrix!,
+        _distortionCoefficients!,
+        cv.Mat.empty(), // R - матрица поворота (пустая)
+        newCameraMatrix, // Новая матрица камеры
+        (width, height), // Размер как кортеж
+        cv.MatType.CV_32FC1.value,
+      );
+
+      _map1 = map1;
+      _map2 = map2;
+
+      newCameraMatrix.release();
+      _currentWidth = width;
+      _currentHeight = height;
+
+      if (showDebug) {
+        print(
+          'Карты преобразования для коррекции дисторсии вычислены для размера $width x $height',
+        );
+      }
+    } catch (e) {
+      print('Ошибка при вычислении карт преобразования: $e');
+
+      // Альтернативный подход: используем initUndistortRectifyMap без getOptimalNewCameraMatrix
+      try {
+        _map1?.release();
+        _map2?.release();
+
+        final (map1, map2) = cv.initUndistortRectifyMap(
+          _cameraMatrix!,
+          _distortionCoefficients!,
+          cv.Mat.empty(), // R - матрица поворота
+          _cameraMatrix!, // Используем исходную матрицу камеры
+          (width, height),
+          cv.MatType.CV_32FC1.value,
+        );
+
+        _map1 = map1;
+        _map2 = map2;
+        _currentWidth = width;
+        _currentHeight = height;
+
+        print('Карты преобразования вычислены альтернативным методом');
+      } catch (e2) {
+        print('Альтернативный метод также не сработал: $e2');
+      }
+    }
+  }
+
+  cv.Mat _undistortImage(cv.Mat image, int width, int height) {
+    if (_cameraMatrix == null || _distortionCoefficients == null) {
+      return image;
+    }
+
+    try {
+      // Вычисляем карты преобразования если нужно
+      _computeUndistortMaps(width, height);
+
+      if (_map1 == null || _map2 == null) {
+        print('Ошибка: карты преобразования не вычислены');
+        return image;
+      }
+
+      // Применяем коррекцию используя предварительно вычисленные карты
+      final undistortedImage = cv.Mat.empty();
+      cv.remap(
+        image,
+        _map1!,
+        _map2!,
+        cv.INTER_LINEAR,
+        dst: undistortedImage,
+        borderMode: cv.BORDER_CONSTANT,
+        borderValue: cv.Scalar(),
+      );
+
+      if (showDebug) {
+        print('Коррекция дисторсии применена к изображению $width x $height');
+      }
+
+      return undistortedImage;
+    } catch (e) {
+      print('Ошибка при коррекции дисторсии: $e');
+      return image; // Возвращаем исходное изображение в случае ошибки
+    }
+  }
+
   /// Распознаёт маркеры ArUco в изображении из байтов
   Future<List<MarkerDetection>> detectMarkersFromImageBytes(
     Uint8List imageBytes,
     int width,
-    int height,
-  ) async {
+    int height, {
+    bool applyUndistortion = false,
+  }) async {
     if (!_isInitialized || _detector == null) {
       print('Ошибка: CvService не инициализирован или детектор отсутствует');
       return [];
     }
 
     try {
-      if (showDebug) print('Начало распознавания маркеров из изображения');
+      if (showDebug) {
+        print('Начало распознавания маркеров из изображения');
+        print('Размер изображения: $width x $height');
+        print('Коррекция дисторсии: $applyUndistortion');
+      }
 
       final mat = cv.Mat.zeros(height, width, cv.MatType.CV_8UC1);
 
@@ -82,9 +258,20 @@ class CvService {
         return [];
       }
 
-      final grayMat = mat;
+      cv.Mat processingMat;
+      bool shouldReleaseMat = false;
 
-      final result = _detector!.detectMarkers(grayMat);
+      // Применяем коррекцию дисторсии если нужно
+      if (applyUndistortion &&
+          _cameraMatrix != null &&
+          _distortionCoefficients != null) {
+        processingMat = _undistortImage(mat, width, height);
+        shouldReleaseMat = true;
+      } else {
+        processingMat = mat;
+      }
+
+      final result = _detector!.detectMarkers(processingMat);
       final corners = result.$1;
       final ids = result.$2;
       final rejected = result.$3;
@@ -120,7 +307,11 @@ class CvService {
         }
       }
 
-      mat.dispose();
+      processingMat.release();
+      if (shouldReleaseMat) {
+        mat.release();
+      }
+
       if (showDebug) {
         print(
           'Распознавание маркеров завершено: ${detections.length} маркеров найдено',
@@ -131,6 +322,27 @@ class CvService {
       print('Ошибка при распознавании маркеров: $e');
       return [];
     }
+  }
+
+  /// Распознаёт маркеры с коррекцией дисторсии (удобный метод)
+  Future<List<MarkerDetection>> detectMarkersFromImageBytesWithUndistortion(
+    Uint8List imageBytes,
+    int width,
+    int height,
+    Map<String, dynamic>? calibration,
+  ) async {
+    // Если переданы параметры калибровки - устанавливаем их
+    if (calibration != null) {
+      final cameraCalibration = CameraCalibration.fromJson(calibration);
+      setCameraCalibration(cameraCalibration);
+    }
+
+    return detectMarkersFromImageBytes(
+      imageBytes,
+      width,
+      height,
+      applyUndistortion: true,
+    );
   }
 
   Future<bool> changeDictionary(ArucoDictionary dictionary) async {
@@ -175,6 +387,21 @@ class CvService {
     _dictionary = null;
     _detectorParams = null;
     _detector = null;
+
+    _cameraMatrix?.release();
+    _distortionCoefficients?.release();
+    _optimalCameraMatrix?.release();
+    _map1?.release();
+    _map2?.release();
+
+    _dictionary = null;
+    _detectorParams = null;
+    _detector = null;
+    _cameraMatrix = null;
+    _distortionCoefficients = null;
+    _optimalCameraMatrix = null;
+    _map1 = null;
+    _map2 = null;
 
     print('CvService завершён');
   }
