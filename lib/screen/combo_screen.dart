@@ -41,8 +41,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   List<MarkerDetection> _detectedMarkers = [];
   String? _errorMessage;
   bool _isInitializing = false;
-  // bool _isAvailable = false;
-  // bool init = true;
 
   // Настройки
   final ArucoDictionary _currentDictionary = ArucoDictionary.dict4x4_50;
@@ -118,7 +116,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   Future<void> _checkAvailabilityAndStart() async {
     bool available = await MotionCore.isAvailable();
     if (!mounted) return;
-    // setState(() => _isAvailable = available);
     if (available) _startMotionListening();
   }
 
@@ -151,10 +148,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
       _userPosition = position;
       print(position.toString());
     });
-
-    // if (init) {
-    //   init = false;
-    // }
   }
 
   Future<void> _initializeAll() async {
@@ -274,10 +267,9 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
         return;
       }
 
-      final calibration = await _loadCalibrationData();
+      // final calibration = await _loadCalibrationData();
 
-      // Устанавливаем калибровку
-      _cameraController.setCameraCalibration(calibration);
+      // _cameraController.setCameraCalibration(calibration);
 
       // Запустить непрерывное распознавание сразу после инициализации
       _cameraController.startContinuousDetection();
@@ -287,9 +279,7 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
         (detections) {
           if (mounted) {
             setState(() {
-              _detectedMarkers = List<MarkerDetection>.from(
-                detections,
-              ); // Создаём новый список
+              _detectedMarkers = List<MarkerDetection>.from(detections);
 
               if (_detectedMarkers.isNotEmpty && needCalibration) {
                 _handleCalibration(_detectedMarkers);
@@ -509,7 +499,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
               right: 0,
               child: SizedBox(
                 height: 100,
-
                 child: CompassOverlayWidget(
                   currentAzimuth: finalYaw,
                   magneticAzimuth: magneticYaw,

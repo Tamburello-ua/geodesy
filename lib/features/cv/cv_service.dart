@@ -331,7 +331,6 @@ class CvService {
     int height,
     Map<String, dynamic>? calibration,
   ) async {
-    // Если переданы параметры калибровки - устанавливаем их
     if (calibration != null) {
       final cameraCalibration = CameraCalibration.fromJson(calibration);
       setCameraCalibration(cameraCalibration);

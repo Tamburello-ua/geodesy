@@ -21,7 +21,6 @@ class ArucoScannerCameraController {
   ReceivePort? _sendPortReceivePort; // Отдельный ReceivePort для SendPort
   SendPort? _isolateSendPort;
   Isolate? _isolate;
-  // Timer? _throttleTimer;
 
   bool _isInitialized = false;
   bool _isProcessingFrame = false;
@@ -351,13 +350,6 @@ class ArucoScannerCameraController {
             );
           }
 
-          // Распознать маркеры
-          // final detections = await cvService.detectMarkersFromImageBytes(
-          //   Uint8List.fromList(imageBytes),
-          //   width,
-          //   height,
-          // );
-
           List<MarkerDetection> detections;
 
           if (calibration != null) {
@@ -366,7 +358,7 @@ class ArucoScannerCameraController {
                   Uint8List.fromList(imageBytes),
                   width,
                   height,
-                  calibration, // Передаем параметры калибровки
+                  calibration,
                 );
             // if (showDebug) print('Detection with undistortion applied');
           } else {
@@ -381,9 +373,7 @@ class ArucoScannerCameraController {
           //   'Sending detections from isolate: type=${detections.runtimeType}, count=${detections.length}',
           // );
           if (mainResponseSendPort != null) {
-            mainResponseSendPort?.send(
-              detections,
-            ); // Отправляем в правильный SendPort
+            mainResponseSendPort?.send(detections);
           } else {
             print('Ошибка: mainResponseSendPort не инициализирован');
           }
@@ -392,7 +382,6 @@ class ArucoScannerCameraController {
     });
   }
 
-  /// Запускает непрерывное распознавание
   void startContinuousDetection() {
     if (!_isInitialized ||
         _controller == null ||
