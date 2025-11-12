@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:geodesy/models/camera_calibration.dart';
+import 'package:geodesy/screen/utils/audio_player_handler.dart';
 import 'package:geodesy/screen/utils/camera_focal_length.dart';
 import 'package:geodesy/screen/utils/fov_utils.dart';
 import 'package:geodesy/screen/utils/position_data.dart';
@@ -81,12 +83,29 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
   late StreamSubscription<CompassEvent> _compassSubscription;
   Map<String, double> _targetPoint = {};
 
+  late AudioPlayerHandler _audioHandler;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
     _initializeAll();
+  }
+
+  Future<void> _initializeAll() async {
+    bool granted = await _requestAllPermissions();
+    if (!granted) {
+      setState(() => _isInitializing = false);
+      return;
+    }
+
+    await initializeAudioHandler();
+
+    _startCompassListening();
+    await _checkAvailabilityAndStart();
+    await _initializeCamera();
+    await _initializeLocation();
   }
 
   @override
@@ -97,6 +116,17 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
     _compassSubscription.cancel();
 
     super.dispose();
+  }
+
+  Future<void> initializeAudioHandler() async {
+    _audioHandler = await AudioService.init(
+      builder: () => AudioPlayerHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.example.geodesy.channel.audio',
+        androidNotificationChannelName: 'Audio playback',
+        androidNotificationOngoing: true,
+      ),
+    );
   }
 
   Future<void> getFL() async {
@@ -148,19 +178,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
       _userPosition = position;
       print(position.toString());
     });
-  }
-
-  Future<void> _initializeAll() async {
-    bool granted = await _requestAllPermissions();
-    if (!granted) {
-      setState(() => _isInitializing = false);
-      return;
-    }
-
-    _startCompassListening();
-    await _checkAvailabilityAndStart();
-    await _initializeCamera();
-    await _initializeLocation();
   }
 
   Future<bool> _requestAllPermissions() async {
@@ -268,7 +285,6 @@ class _ComboScreenState extends State<ComboScreen> with WidgetsBindingObserver {
       }
 
       // final calibration = await _loadCalibrationData();
-
       // _cameraController.setCameraCalibration(calibration);
 
       // Запустить непрерывное распознавание сразу после инициализации

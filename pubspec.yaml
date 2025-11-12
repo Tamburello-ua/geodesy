@@ -11,7 +11,8 @@ environment:
 
 
 dependencies:
-  audio_session: ^0.2.2
+  # audio_session: ^0.2.2
+  audio_service: ^0.18.18
   camera: ^0.11.0
   cubixd: ^0.1.1
   flutter:

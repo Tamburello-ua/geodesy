@@ -8,5 +8,6 @@
   "dart.sdkPath": ".fvm/flutter_sdk/bin/cache/dart-sdk",
   "terminal.integrated.env.osx": {
     "PATH": "${workspaceFolder}/.fvm/flutter_sdk/bin:${env:PATH}"
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "disabled"
 }
